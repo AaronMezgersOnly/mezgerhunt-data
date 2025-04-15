@@ -37,15 +37,6 @@ async function scrapeRennlist() {
           // Add placeholder for image
           imageUrl: '/placeholder.svg?height=200&width=200'
         };
-        {
-          name: 'BringATrailer',
-          url: 'https://bringatrailer.com/porsche/911-gt3-gt2/',
-          selector: '.bat-grid-item',
-          titleSelector: '.bat-grid-item-title',
-          priceSelector: '.bat-grid-item-price',
-          linkSelector: 'a.bat-grid-item-link',
-          baseUrl: ''
-        };
         data.listings.push(listing);
       }
     });
