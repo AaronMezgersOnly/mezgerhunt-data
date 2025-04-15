@@ -1,0 +1,14 @@
+{
+  "lastUpdated": "2023-01-01T00:00:00.000Z",
+  "sources": ["Initial"],
+  "listings": [
+    {
+      "title": "Initial Data - Will be updated by scraper",
+      "price": "$0",
+      "url": "https://example.com",
+      "source": "Initial",
+      "date": "2023-01-01",
+      "imageUrl": "/placeholder.svg?height=200&width=200"
+    }
+  ]
+}
