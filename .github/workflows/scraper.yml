@@ -1,33 +1,33 @@
-name: Scrape Data
+name: Mezger Engine Listings Scraper
 
 on:
-  workflow_dispatch:  # Manual trigger
   schedule:
-    - cron: '0 0 * * *'  # Run daily at midnight UTC
+    - cron: '0 */12 * * *'  # Run every 12 hours
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    
     steps:
-      - uses: actions/checkout@v3
-      
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           
       - name: Install dependencies
-        run: npm install
-        
+        run: |
+          npm install node-fetch@2 jsdom
+          
       - name: Run scraper
         run: node scraper.js
         
       - name: Commit and push if changed
         run: |
-          git config --global user.name 'GitHub Action'
-          git config --global user.email 'action@github.com'
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
           git add data.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Update data"
-          git push
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update data.json with latest listings" && git push)
