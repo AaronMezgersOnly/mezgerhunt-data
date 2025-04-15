@@ -1,24 +1,27 @@
-name: Scrape Mezger Listings
+name: Mezger Search Data Scraper
 
 on:
   schedule:
     - cron: '0 */6 * * *'  # Run every 6 hours
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v3
-      
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           
       - name: Install dependencies
-        run: npm install axios cheerio
-        
+        run: |
+          npm install axios cheerio node-fetch@2 jsdom
+          
       - name: Run scraper
         run: node scraper.js
         
@@ -27,5 +30,5 @@ jobs:
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
           git add data.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Update data.json"
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update Mezger Search data.json"
           git push
