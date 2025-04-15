@@ -1,33 +1,5 @@
 {
-  "lastUpdated": "2025-04-15T18:55:39.815Z",
-  "sources": [
-    "Rennlist",
-    "PelicanParts"
-  ],
-  "listings": [
-    {
-      "title": "2004 Porsche 996 GT3",
-      "price": "$89,500",
-      "url": "https://example.com/listing/123",
-      "source": "Mock Data",
-      "date": "2025-04-15",
-      "imageUrl": "/placeholder.svg?height=200&width=200"
-    },
-    {
-      "title": "2011 Porsche 997 GT3 RS 4.0",
-      "price": "$495,000",
-      "url": "https://example.com/listing/456",
-      "source": "Mock Data",
-      "date": "2025-04-15",
-      "imageUrl": "/placeholder.svg?height=200&width=200"
-    },
-    {
-      "title": "2007 Porsche 997 Turbo",
-      "price": "$110,000",
-      "url": "https://example.com/listing/789",
-      "source": "Mock Data",
-      "date": "2025-04-15",
-      "imageUrl": "/placeholder.svg?height=200&width=200"
-    }
-  ]
+  "cars": [],
+  "parts": [],
+  "lastUpdated": "2025-04-15T18:59:47.935Z"
 }
