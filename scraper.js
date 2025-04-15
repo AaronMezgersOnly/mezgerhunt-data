@@ -1,5 +1,7 @@
+// Mezger Search - Web Scraper
 import fs from 'fs/promises';
-import fetch from 'node-fetch';
+import axios from 'axios';
+import cheerio from 'cheerio';
 import { JSDOM } from 'jsdom';
 
 // Configuration
@@ -9,31 +11,49 @@ const config = {
       name: 'bringatrailer',
       displayName: 'Bring A Trailer',
       url: 'https://bringatrailer.com/porsche/911-gt3-gt2-turbo-mezger/',
-      type: 'car'
+      type: 'car',
+      scraper: 'cheerio' // Use cheerio for this source
     },
     {
       name: 'rennlist',
       displayName: 'Rennlist',
       url: 'https://rennlist.com/forums/market/vehicles-for-sale/',
-      type: 'car'
+      type: 'car',
+      scraper: 'jsdom' // Use jsdom for this source
     },
     {
       name: 'pelicanparts',
       displayName: 'Pelican Parts',
       url: 'https://www.pelicanparts.com/Porsche/catalog/SuperCat_Porsche_911_997_Engine.htm',
-      type: 'part'
+      type: 'part',
+      scraper: 'cheerio' // Use cheerio for this source
     }
   ],
   outputPath: './data.json',
   searchTerms: {
     cars: ['gt3', 'gt3 rs', 'gt2', 'gt2 rs', 'turbo', 'mezger'],
     parts: ['engine', 'mezger', 'gt3', 'gt2', 'turbo']
-  }
+  },
+  requestDelay: 2000, // 2 second delay between requests
+  userAgent: 'MezgerSearch Data Collector (contact@youremail.com)'
 };
+
+// Create axios instance with custom headers
+const axiosInstance = axios.create({
+  headers: {
+    'User-Agent': config.userAgent,
+  },
+  timeout: 30000
+});
+
+// Helper function to add delay between requests
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // Main scraper function
 async function runScraper() {
-  console.log('Starting Mezger Engine Listings Scraper...');
+  console.log('Starting Mezger Search Scraper...');
   
   // Initialize data structure
   const data = {
@@ -57,29 +77,28 @@ async function runScraper() {
     console.log(`Processing source: ${source.displayName} (${source.url})`);
     
     try {
-      // Fetch the page
-      const response = await fetch(source.url);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${source.url}: ${response.status} ${response.statusText}`);
+      // Add delay between sources
+      if (config.sources.indexOf(source) > 0) {
+        console.log(`Waiting ${config.requestDelay}ms before next request...`);
+        await delay(config.requestDelay);
       }
       
-      const html = await response.text();
-      const dom = new JSDOM(html);
-      const document = dom.window.document;
-      
-      // Extract listings based on source type
-      if (source.type === 'car') {
-        await scrapeCarListings(document, source, data);
-      } else if (source.type === 'part') {
-        await scrapePartListings(document, source, data);
+      if (source.scraper === 'cheerio') {
+        // Use cheerio for this source
+        await scrapeWithCheerio(source, data);
+      } else {
+        // Use jsdom for this source
+        await scrapeWithJSDOM(source, data);
       }
     } catch (error) {
       console.error(`Error processing ${source.name}:`, error);
     }
   }
   
-  // Add some demo data for testing
-  addDemoData(data);
+  // Add some demo data for testing if needed
+  if (data.cars.length < 3 || data.parts.length < 3) {
+    addDemoData(data);
+  }
   
   // Save the data
   await fs.writeFile(config.outputPath, JSON.stringify(data, null, 2));
@@ -87,7 +106,325 @@ async function runScraper() {
   console.log(`Total: ${data.cars.length} cars and ${data.parts.length} parts`);
 }
 
-// Function to scrape car listings (customize for each source)
+// Scrape using cheerio (better for simpler sites)
+async function scrapeWithCheerio(source, data) {
+  const response = await axiosInstance.get(source.url);
+  const $ = cheerio.load(response.data);
+  
+  if (source.name === 'bringatrailer') {
+    await scrapeBringATrailer($, source, data);
+  } else if (source.name === 'pelicanparts') {
+    await scrapePelicanParts($, source, data);
+  } else {
+    // Generic cheerio scraper for other sites
+    if (source.type === 'car') {
+      await scrapeGenericCarListings($, source, data);
+    } else {
+      await scrapeGenericPartListings($, source, data);
+    }
+  }
+}
+
+// Scrape using JSDOM (better for complex sites with JavaScript)
+async function scrapeWithJSDOM(source, data) {
+  const response = await fetch(source.url, {
+    headers: {
+      'User-Agent': config.userAgent
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${source.url}: ${response.status} ${response.statusText}`);
+  }
+  
+  const html = await response.text();
+  const dom = new JSDOM(html);
+  const document = dom.window.document;
+  
+  if (source.type === 'car') {
+    await scrapeCarListings(document, source, data);
+  } else {
+    await scrapePartListings(document, source, data);
+  }
+}
+
+// Specific scraper for Bring A Trailer
+async function scrapeBringATrailer($, source, data) {
+  console.log('Using specialized scraper for Bring A Trailer');
+  
+  $('.bat-grid-item-image').each((index, element) => {
+    try {
+      const title = $(element).find('.bat-grid-item-title').text().trim();
+      
+      // Skip if not a Mezger engine car
+      if (!isMezgerCar(title)) return;
+      
+      const priceText = $(element).find('.bat-grid-item-details-price').text().trim();
+      const price = extractPrice(priceText);
+      const link = $(element).find('a').attr('href') || '#';
+      const imageUrl = $(element).find('img').attr('src') || '';
+      const year = extractYear(title);
+      
+      // Create a unique ID for the listing
+      const id = `${source.name}-${Buffer.from(link).toString('base64').substring(0, 10)}`;
+      
+      // Check if we already have this listing
+      const existingIndex = data.cars.findIndex(car => car.id === id);
+      
+      const carListing = {
+        id,
+        type: 'car',
+        title,
+        price,
+        year,
+        image: imageUrl,
+        source: source.name,
+        sourceDisplay: source.displayName,
+        link,
+        dateScraped: new Date().toISOString(),
+        status: 'active'
+      };
+      
+      if (existingIndex >= 0) {
+        // Update existing listing
+        data.cars[existingIndex] = {
+          ...data.cars[existingIndex],
+          ...carListing,
+          // Preserve original scraped date
+          dateScraped: data.cars[existingIndex].dateScraped
+        };
+        console.log(`Updated car listing: ${title}`);
+      } else {
+        // Add new listing
+        data.cars.push(carListing);
+        console.log(`Added new car listing: ${title}`);
+      }
+    } catch (error) {
+      console.error('Error processing BAT listing:', error);
+    }
+  });
+  
+  console.log(`Processed ${data.cars.length} car listings from Bring A Trailer`);
+}
+
+// Specific scraper for Pelican Parts
+async function scrapePelicanParts($, source, data) {
+  console.log('Using specialized scraper for Pelican Parts');
+  
+  $('.product-listing').each((index, element) => {
+    try {
+      const title = $(element).find('.product-title').text().trim();
+      
+      // Skip if not a Mezger engine part
+      if (!isMezgerPart(title)) return;
+      
+      const priceText = $(element).find('.product-price').text().trim();
+      const price = extractPrice(priceText);
+      const link = 'https://www.pelicanparts.com' + $(element).find('a').attr('href');
+      const imageUrl = $(element).find('img').attr('src') || '';
+      const partNumber = $(element).find('.product-number').text().trim();
+      
+      // Determine stock status
+      let status = 'in_stock';
+      const stockText = $(element).find('.stock-status').text().toLowerCase();
+      if (stockText.includes('out of stock') || stockText.includes('sold out')) {
+        status = 'out_of_stock';
+      } else if (stockText.includes('back order') || stockText.includes('pre-order')) {
+        status = 'back_ordered';
+      }
+      
+      // Create a unique ID for the listing
+      const id = `${source.name}-${Buffer.from(link).toString('base64').substring(0, 10)}`;
+      
+      // Check if we already have this listing
+      const existingIndex = data.parts.findIndex(part => part.id === id);
+      
+      const partListing = {
+        id,
+        type: 'part',
+        title,
+        partNumber,
+        price,
+        image: imageUrl,
+        source: source.name,
+        sourceDisplay: source.displayName,
+        link,
+        dateScraped: new Date().toISOString(),
+        status
+      };
+      
+      if (existingIndex >= 0) {
+        // Update existing listing
+        data.parts[existingIndex] = {
+          ...data.parts[existingIndex],
+          ...partListing,
+          // Preserve original scraped date
+          dateScraped: data.parts[existingIndex].dateScraped
+        };
+        console.log(`Updated part listing: ${title}`);
+      } else {
+        // Add new listing
+        data.parts.push(partListing);
+        console.log(`Added new part listing: ${title}`);
+      }
+    } catch (error) {
+      console.error('Error processing Pelican Parts listing:', error);
+    }
+  });
+  
+  console.log(`Processed ${data.parts.length} part listings from Pelican Parts`);
+}
+
+// Generic car listings scraper with cheerio
+async function scrapeGenericCarListings($, source, data) {
+  const selectors = {
+    container: '.listing-item, .auction-item, .car-listing',
+    title: '.listing-title, .item-title',
+    price: '.price, .amount',
+    link: 'a',
+    image: 'img',
+    location: '.location'
+  };
+  
+  const listings = $(selectors.container);
+  console.log(`Found ${listings.length} potential car listings on ${source.name}`);
+  
+  listings.each((index, element) => {
+    try {
+      const title = $(element).find(selectors.title).text().trim() || 'Unknown Model';
+      
+      // Skip if not a Mezger engine car
+      if (!isMezgerCar(title)) return;
+      
+      const priceText = $(element).find(selectors.price).text().trim();
+      const price = extractPrice(priceText);
+      const link = $(element).find(selectors.link).attr('href') || '#';
+      const imageUrl = $(element).find(selectors.image).attr('src') || '';
+      const year = extractYear(title);
+      const location = $(element).find(selectors.location).text().trim() || '';
+      
+      // Create a unique ID for the listing
+      const id = `${source.name}-${Buffer.from(link).toString('base64').substring(0, 10)}`;
+      
+      // Check if we already have this listing
+      const existingIndex = data.cars.findIndex(car => car.id === id);
+      
+      const carListing = {
+        id,
+        type: 'car',
+        title,
+        price,
+        year,
+        location,
+        image: imageUrl,
+        source: source.name,
+        sourceDisplay: source.displayName,
+        link,
+        dateScraped: new Date().toISOString(),
+        status: 'active'
+      };
+      
+      if (existingIndex >= 0) {
+        // Update existing listing
+        data.cars[existingIndex] = {
+          ...data.cars[existingIndex],
+          ...carListing,
+          // Preserve original scraped date
+          dateScraped: data.cars[existingIndex].dateScraped
+        };
+        console.log(`Updated car listing: ${title}`);
+      } else {
+        // Add new listing
+        data.cars.push(carListing);
+        console.log(`Added new car listing: ${title}`);
+      }
+    } catch (error) {
+      console.error('Error processing car listing:', error);
+    }
+  });
+}
+
+// Generic part listings scraper with cheerio
+async function scrapeGenericPartListings($, source, data) {
+  const selectors = {
+    container: '.part-item, .product-listing',
+    title: '.part-title, .product-name',
+    price: '.price, .amount',
+    link: 'a',
+    image: 'img',
+    partNumber: '.part-number, .sku',
+    description: '.description, .details',
+    stock: '.stock, .availability'
+  };
+  
+  const listings = $(selectors.container);
+  console.log(`Found ${listings.length} potential part listings on ${source.name}`);
+  
+  listings.each((index, element) => {
+    try {
+      const title = $(element).find(selectors.title).text().trim() || 'Unknown Part';
+      
+      // Skip if not a Mezger engine part
+      if (!isMezgerPart(title)) return;
+      
+      const priceText = $(element).find(selectors.price).text().trim();
+      const price = extractPrice(priceText);
+      const link = $(element).find(selectors.link).attr('href') || '#';
+      const imageUrl = $(element).find(selectors.image).attr('src') || '';
+      const partNumber = $(element).find(selectors.partNumber).text().trim() || '';
+      const description = $(element).find(selectors.description).text().trim() || '';
+      
+      // Determine stock status
+      let status = 'in_stock';
+      const stockText = $(element).find(selectors.stock).text().toLowerCase();
+      if (stockText.includes('out of stock') || stockText.includes('sold out')) {
+        status = 'out_of_stock';
+      } else if (stockText.includes('back order') || stockText.includes('pre-order')) {
+        status = 'back_ordered';
+      }
+      
+      // Create a unique ID for the listing
+      const id = `${source.name}-${Buffer.from(link).toString('base64').substring(0, 10)}`;
+      
+      // Check if we already have this listing
+      const existingIndex = data.parts.findIndex(part => part.id === id);
+      
+      const partListing = {
+        id,
+        type: 'part',
+        title,
+        partNumber,
+        price,
+        description,
+        image: imageUrl,
+        source: source.name,
+        sourceDisplay: source.displayName,
+        link,
+        dateScraped: new Date().toISOString(),
+        status
+      };
+      
+      if (existingIndex >= 0) {
+        // Update existing listing
+        data.parts[existingIndex] = {
+          ...data.parts[existingIndex],
+          ...partListing,
+          // Preserve original scraped date
+          dateScraped: data.parts[existingIndex].dateScraped
+        };
+        console.log(`Updated part listing: ${title}`);
+      } else {
+        // Add new listing
+        data.parts.push(partListing);
+        console.log(`Added new part listing: ${title}`);
+      }
+    } catch (error) {
+      console.error('Error processing part listing:', error);
+    }
+  });
+}
+
+// Function to scrape car listings with JSDOM
 async function scrapeCarListings(document, source, data) {
   // This is a simplified example - you'll need to customize for each source
   const listings = document.querySelectorAll('.listing-item, .auction-item, .car-listing');
@@ -96,13 +433,13 @@ async function scrapeCarListings(document, source, data) {
   for (const listing of listings) {
     try {
       // Extract data based on the source's HTML structure
-      // This is just an example - adjust selectors for each source
       const title = listing.querySelector('.listing-title, .item-title')?.textContent?.trim() || 'Unknown Model';
       
       // Skip if not a Mezger engine car
       if (!isMezgerCar(title)) continue;
       
-      const price = extractPrice(listing.querySelector('.price, .amount')?.textContent);
+      const priceText = listing.querySelector('.price, .amount')?.textContent;
+      const price = extractPrice(priceText);
       const link = listing.querySelector('a')?.href || '#';
       const image = listing.querySelector('img')?.src || '';
       const year = extractYear(title);
@@ -149,7 +486,7 @@ async function scrapeCarListings(document, source, data) {
   }
 }
 
-// Function to scrape part listings (customize for each source)
+// Function to scrape part listings with JSDOM
 async function scrapePartListings(document, source, data) {
   // This is a simplified example - you'll need to customize for each source
   const listings = document.querySelectorAll('.part-item, .product-listing');
@@ -163,7 +500,8 @@ async function scrapePartListings(document, source, data) {
       // Skip if not a Mezger engine part
       if (!isMezgerPart(title)) continue;
       
-      const price = extractPrice(listing.querySelector('.price, .amount')?.textContent);
+      const priceText = listing.querySelector('.price, .amount')?.textContent;
+      const price = extractPrice(priceText);
       const link = listing.querySelector('a')?.href || '#';
       const image = listing.querySelector('img')?.src || '';
       const partNumber = listing.querySelector('.part-number, .sku')?.textContent?.trim() || '';
@@ -261,8 +599,8 @@ function extractYear(title) {
 
 // Add some demo data for testing
 function addDemoData(data) {
-  // Add demo cars if we have fewer than 5 cars
-  if (data.cars.length < 5) {
+  // Add demo cars if we have fewer than 3 cars
+  if (data.cars.length < 3) {
     const demoCars = [
       {
         id: "demo-gt3-1",
@@ -305,8 +643,8 @@ function addDemoData(data) {
     }
   }
   
-  // Add demo parts if we have fewer than 5 parts
-  if (data.parts.length < 5) {
+  // Add demo parts if we have fewer than 3 parts
+  if (data.parts.length < 3) {
     const demoParts = [
       {
         id: "demo-part-1",

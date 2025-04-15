@@ -1,8 +1,9 @@
 {
   "name": "mezgerhunt-data",
   "version": "1.0.0",
-  "description": "Data scraper for MezgerHub",
+  "description": "Data scraper for Mezger engine listings",
   "main": "scraper.js",
+  "type": "module",
   "scripts": {
     "scrape": "node scraper.js"
   },

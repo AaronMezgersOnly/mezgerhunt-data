@@ -1,33 +1,52 @@
 {
-  "lastUpdated": "2025-04-15T18:33:08.350Z",
+  "lastUpdated": "2025-04-15T19:19:51.744Z",
   "sources": [
     "Rennlist",
     "PelicanParts"
   ],
-  "listings": [
+  "cars": [
     {
+      "id": "car-1",
       "title": "2004 Porsche 996 GT3",
-      "price": "$89,500",
-      "url": "https://example.com/listing/123",
+      "price": 89500,
+      "priceDisplay": "$89,500",
+      "year": 2004,
+      "model": "996 GT3",
+      "link": "https://example.com/listing/123",
       "source": "Mock Data",
-      "date": "2025-04-15",
-      "imageUrl": "/placeholder.svg?height=200&width=200"
+      "sourceDisplay": "Mock Data",
+      "dateScraped": "2025-04-15",
+      "image": "/placeholder.svg?height=200&width=200",
+      "status": "active"
     },
     {
+      "id": "car-2",
       "title": "2011 Porsche 997 GT3 RS 4.0",
-      "price": "$495,000",
-      "url": "https://example.com/listing/456",
+      "price": 495000,
+      "priceDisplay": "$495,000",
+      "year": 2011,
+      "model": "997 GT3 RS 4.0",
+      "link": "https://example.com/listing/456",
       "source": "Mock Data",
-      "date": "2025-04-15",
-      "imageUrl": "/placeholder.svg?height=200&width=200"
+      "sourceDisplay": "Mock Data",
+      "dateScraped": "2025-04-15",
+      "image": "/placeholder.svg?height=200&width=200",
+      "status": "active"
     },
     {
+      "id": "car-3",
       "title": "2007 Porsche 997 Turbo",
-      "price": "$110,000",
-      "url": "https://example.com/listing/789",
+      "price": 110000,
+      "priceDisplay": "$110,000",
+      "year": 2007,
+      "model": "997 Turbo",
+      "link": "https://example.com/listing/789",
       "source": "Mock Data",
-      "date": "2025-04-15",
-      "imageUrl": "/placeholder.svg?height=200&width=200"
+      "sourceDisplay": "Mock Data",
+      "dateScraped": "2025-04-15",
+      "image": "/placeholder.svg?height=200&width=200",
+      "status": "active"
     }
-  ]
+  ],
+  "parts": []
 }
