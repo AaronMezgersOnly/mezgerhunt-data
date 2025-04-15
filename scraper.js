@@ -99,6 +99,22 @@ async function runScrapers() {
   // Save data to JSON file
   await fs.writeFile('data.json', JSON.stringify(allListings, null, 2));
   console.log('Data saved to data.json');
+
+  // Add to your scraper.js
+const axiosInstance = axios.create({
+  headers: {
+    'User-Agent': 'MezgerHunt Data Collector (contact@youremail.com)',
+  },
+  timeout: 30000
+});
+
+// Add delay between requests
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Use in your scraper functions
+await delay(2000); // 2-second delay between requests
 }
 
 // Run the scrapers
