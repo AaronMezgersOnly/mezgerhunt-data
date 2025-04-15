@@ -19,7 +19,7 @@ async function scrapeData() {
   // Add your scraping code here
   // Example: Scrape a website for car listings
   try {
-    const newCars = await scrapeCarWebsite();
+    const newCars = await scrapeCarWebsite(https://bringatrailer.com/);
     data.cars = [...newCars, ...data.cars.filter(car => 
       !newCars.some(newCar => newCar.id === car.id)
     )];
@@ -29,7 +29,7 @@ async function scrapeData() {
   
   // Example: Scrape a website for parts listings
   try {
-    const newParts = await scrapePartsWebsite();
+    const newParts = await scrapePartsWebsite(https://www.pelicanparts.com/Porsche/index-SC.htm);
     data.parts = [...newParts, ...data.parts.filter(part => 
       !newParts.some(newPart => newPart.id === part.id)
     )];
