@@ -21,8 +21,24 @@ jobs:
       - name: Install dependencies
         run: npm install
         
+      - name: Debug environment
+        run: |
+          pwd
+          ls -la
+          npm list
+        
       - name: Run scraper
         run: node scraper.js
+        
+      - name: Check if data.json exists
+        run: |
+          if [ -f "data.json" ]; then
+            echo "data.json exists"
+            cat data.json | head -n 20
+          else
+            echo "data.json does not exist"
+            ls -la
+          fi
         
       - name: Commit and push if changed
         run: |
