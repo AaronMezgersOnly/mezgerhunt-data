@@ -1,13 +1,40 @@
 {
   "name": "mezgerhunt-data",
   "version": "1.0.0",
-  "description": "Data scraper for MezgerHub",
+  "description": "Web scraper for Mezger engine Porsche listings and parts",
+  "type": "module",
   "main": "scraper.js",
   "scripts": {
-    "scrape": "node scraper.js"
+    "start": "node scraper.js",
+    "test": "node --test"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/mezgerhunt-data.git"
+  },
+  "keywords": [
+    "porsche",
+    "mezger",
+    "scraper",
+    "data",
+    "cars",
+    "parts"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
   "dependencies": {
     "axios": "^1.6.2",
-    "cheerio": "^1.0.0-rc.12"
+    "cheerio": "^1.0.0-rc.12",
+    "jsdom": "^22.1.0",
+    "node-fetch": "^3.3.2",
+    "puppeteer": "^21.5.2",
+    "p-limit": "^4.0.0",
+    "got": "^13.0.0",
+    "user-agents": "^1.1.22",
+    "date-fns": "^2.30.0",
+    "lodash": "^4.17.21"
   }
 }
