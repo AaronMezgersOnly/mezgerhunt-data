@@ -1,8 +1,8 @@
-name: Mezger Engine Listings Scraper
+name: Mezger Search Data Scraper
 
 on:
   schedule:
-    - cron: '0 */12 * * *'  # Run every 12 hours
+    - cron: '0 */6 * * *'  # Run every 6 hours
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
@@ -12,22 +12,34 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        
+      
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-          
+          cache: 'npm'
+      
       - name: Install dependencies
         run: |
-          npm install node-fetch@2 jsdom
-          
+          npm ci || npm install
+        
       - name: Run scraper
         run: node scraper.js
         
       - name: Commit and push if changed
         run: |
-          git config --global user.name 'GitHub Actions'
+          git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions@github.com'
           git add data.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update data.json with latest listings" && git push)
+          
+          # Only commit and push if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update data.json [skip ci]"
+            
+            # Set remote URL with token
+            git remote set-url origin https://${{ secrets.PAT }}@github.com/AaronMezgersOnly/mezgerhunt-data.git
+            
+            git push
+          fi
