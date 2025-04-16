@@ -1,7 +1,7 @@
 // Mezger Search - Web Scraper
 import fs from 'fs/promises';
 import axios from 'axios';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 import { JSDOM } from 'jsdom';
 
 // Configuration
@@ -54,14 +54,14 @@ function delay(ms) {
 // Main scraper function
 async function runScraper() {
   console.log('Starting Mezger Search Scraper...');
-  
+
   // Initialize data structure
   const data = {
     cars: [],
     parts: [],
     lastUpdated: new Date().toISOString()
   };
-  
+
   // Try to load existing data if available
   try {
     const existingData = JSON.parse(await fs.readFile(config.outputPath, 'utf8'));
@@ -71,7 +71,7 @@ async function runScraper() {
   } catch (error) {
     console.log('No existing data found or error reading file. Starting fresh.');
   }
-  
+
   // Process each source
   for (const source of config.sources) {
     console.log(`Processing source: ${source.displayName} (${source.url})`);
@@ -94,12 +94,12 @@ async function runScraper() {
       console.error(`Error processing ${source.name}:`, error);
     }
   }
-  
+
   // Add some demo data for testing if needed
   if (data.cars.length < 3 || data.parts.length < 3) {
     addDemoData(data);
   }
-  
+
   // Save the data
   await fs.writeFile(config.outputPath, JSON.stringify(data, null, 2));
   console.log(`Data saved to ${config.outputPath}`);
@@ -110,7 +110,7 @@ async function runScraper() {
 async function scrapeWithCheerio(source, data) {
   const response = await axiosInstance.get(source.url);
   const $ = cheerio.load(response.data);
-  
+
   if (source.name === 'bringatrailer') {
     await scrapeBringATrailer($, source, data);
   } else if (source.name === 'pelicanparts') {
@@ -132,15 +132,15 @@ async function scrapeWithJSDOM(source, data) {
       'User-Agent': config.userAgent
     }
   });
-  
+
   if (!response.ok) {
     throw new Error(`Failed to fetch ${source.url}: ${response.status} ${response.statusText}`);
   }
-  
+
   const html = await response.text();
   const dom = new JSDOM(html);
   const document = dom.window.document;
-  
+
   if (source.type === 'car') {
     await scrapeCarListings(document, source, data);
   } else {
@@ -151,7 +151,7 @@ async function scrapeWithJSDOM(source, data) {
 // Specific scraper for Bring A Trailer
 async function scrapeBringATrailer($, source, data) {
   console.log('Using specialized scraper for Bring A Trailer');
-  
+
   $('.bat-grid-item-image').each((index, element) => {
     try {
       const title = $(element).find('.bat-grid-item-title').text().trim();
@@ -203,14 +203,14 @@ async function scrapeBringATrailer($, source, data) {
       console.error('Error processing BAT listing:', error);
     }
   });
-  
+
   console.log(`Processed ${data.cars.length} car listings from Bring A Trailer`);
 }
 
 // Specific scraper for Pelican Parts
 async function scrapePelicanParts($, source, data) {
   console.log('Using specialized scraper for Pelican Parts');
-  
+
   $('.product-listing').each((index, element) => {
     try {
       const title = $(element).find('.product-title').text().trim();
@@ -271,7 +271,7 @@ async function scrapePelicanParts($, source, data) {
       console.error('Error processing Pelican Parts listing:', error);
     }
   });
-  
+
   console.log(`Processed ${data.parts.length} part listings from Pelican Parts`);
 }
 
@@ -285,10 +285,10 @@ async function scrapeGenericCarListings($, source, data) {
     image: 'img',
     location: '.location'
   };
-  
+
   const listings = $(selectors.container);
   console.log(`Found ${listings.length} potential car listings on ${source.name}`);
-  
+
   listings.each((index, element) => {
     try {
       const title = $(element).find(selectors.title).text().trim() || 'Unknown Model';
@@ -356,10 +356,10 @@ async function scrapeGenericPartListings($, source, data) {
     description: '.description, .details',
     stock: '.stock, .availability'
   };
-  
+
   const listings = $(selectors.container);
   console.log(`Found ${listings.length} potential part listings on ${source.name}`);
-  
+
   listings.each((index, element) => {
     try {
       const title = $(element).find(selectors.title).text().trim() || 'Unknown Part';
@@ -429,7 +429,7 @@ async function scrapeCarListings(document, source, data) {
   // This is a simplified example - you'll need to customize for each source
   const listings = document.querySelectorAll('.listing-item, .auction-item, .car-listing');
   console.log(`Found ${listings.length} potential car listings on ${source.name}`);
-  
+
   for (const listing of listings) {
     try {
       // Extract data based on the source's HTML structure
@@ -491,7 +491,7 @@ async function scrapePartListings(document, source, data) {
   // This is a simplified example - you'll need to customize for each source
   const listings = document.querySelectorAll('.part-item, .product-listing');
   console.log(`Found ${listings.length} potential part listings on ${source.name}`);
-  
+
   for (const listing of listings) {
     try {
       // Extract data based on the source's HTML structure
@@ -582,7 +582,7 @@ function isMezgerPart(title) {
 // Helper function to extract price
 function extractPrice(priceText) {
   if (!priceText) return null;
-  
+
   // Remove currency symbols and commas, then parse as float
   const matches = priceText.match(/[\d,]+(\.\d+)?/);
   if (matches) {
@@ -642,7 +642,7 @@ function addDemoData(data) {
       }
     }
   }
-  
+
   // Add demo parts if we have fewer than 3 parts
   if (data.parts.length < 3) {
     const demoParts = [
