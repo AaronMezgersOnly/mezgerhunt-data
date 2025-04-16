@@ -10,7 +10,9 @@ const config = {
       name: 'bringatrailer',
       displayName: 'Bring A Trailer',
       url: 'https://bringatrailer.com/porsche/911-gt3-gt2-turbo-mezger/',
-      type: 'car'
+      type: 'car',
+      auctionUrl: 'https://bringatrailer.com/porsche/911-gt3-gt2-turbo-mezger/?q=mezger',
+      completedUrl: 'https://bringatrailer.com/porsche/911-gt3-gt2-turbo-mezger/filters/?q=mezger'
     },
     {
       name: 'pelicanparts',
@@ -19,7 +21,8 @@ const config = {
       type: 'part'
     }
   ],
-  outputPath: './data.json',
+  dataOutputPath: './data.json',
+  auctionsOutputPath: './auctions.json',
   searchTerms: {
     cars: ['gt3', 'gt3 rs', 'gt2', 'gt2 rs', 'turbo', 'mezger'],
     parts: ['engine', 'mezger', 'gt3', 'gt2', 'turbo']
@@ -52,14 +55,32 @@ async function runScraper() {
     lastUpdated: new Date().toISOString()
   };
 
+  // Initialize auctions structure
+  const auctions = [];
+
   // Try to load existing data if available
   try {
-    const existingData = JSON.parse(await fs.readFile(config.outputPath, 'utf8'));
+    const existingData = JSON.parse(await fs.readFile(config.dataOutputPath, 'utf8'));
     data.cars = existingData.cars || [];
     data.parts = existingData.parts || [];
     console.log(`Loaded ${data.cars.length} existing car listings and ${data.parts.length} existing part listings.`);
   } catch (error) {
     console.log('No existing data found or error reading file. Starting fresh.');
+  }
+
+  // Try to load existing auctions if available
+  try {
+    const existingAuctions = JSON.parse(await fs.readFile(config.auctionsOutputPath, 'utf8'));
+    // Only keep auctions that haven't ended yet
+    const now = new Date();
+    const validAuctions = existingAuctions.filter(auction => {
+      const endTime = new Date(auction.endTime);
+      return endTime > now;
+    });
+    auctions.push(...validAuctions);
+    console.log(`Loaded ${validAuctions.length} valid existing auction listings.`);
+  } catch (error) {
+    console.log('No existing auctions found or error reading file. Starting fresh.');
   }
 
   // Process each source
@@ -73,7 +94,17 @@ async function runScraper() {
         await delay(config.requestDelay);
       }
       
-      await scrapeWithCheerio(source, data);
+      if (source.name === 'bringatrailer') {
+        // First scrape active auctions
+        console.log(`Scraping active auctions from ${source.displayName}...`);
+        await scrapeBATActiveAuctions(source, auctions);
+        
+        // Then scrape completed listings
+        console.log(`Scraping completed listings from ${source.displayName}...`);
+        await scrapeBATCompletedListings(source, data);
+      } else {
+        await scrapeWithCheerio(source, data);
+      }
     } catch (error) {
       console.error(`Error processing ${source.name}:`, error);
     }
@@ -85,9 +116,14 @@ async function runScraper() {
   }
 
   // Save the data
-  await fs.writeFile(config.outputPath, JSON.stringify(data, null, 2));
-  console.log(`Data saved to ${config.outputPath}`);
+  await fs.writeFile(config.dataOutputPath, JSON.stringify(data, null, 2));
+  console.log(`Data saved to ${config.dataOutputPath}`);
   console.log(`Total: ${data.cars.length} cars and ${data.parts.length} parts`);
+
+  // Save the auctions
+  await fs.writeFile(config.auctionsOutputPath, JSON.stringify(auctions, null, 2));
+  console.log(`Auctions saved to ${config.auctionsOutputPath}`);
+  console.log(`Total: ${auctions.length} active auctions`);
 }
 
 // Scrape using cheerio (better for simpler sites)
@@ -106,6 +142,343 @@ async function scrapeWithCheerio(source, data) {
     } else {
       await scrapeGenericPartListings($, source, data);
     }
+  }
+}
+
+// Specific scraper for Bring A Trailer active auctions
+async function scrapeBATActiveAuctions(source, auctions) {
+  try {
+    const response = await axiosInstance.get(source.auctionUrl);
+    const $ = cheerio.load(response.data);
+    
+    // Find all auction listings
+    const auctionListings = $('.auction-item');
+    console.log(`Found ${auctionListings.length} potential active auctions on Bring A Trailer`);
+    
+    for (const element of auctionListings.toArray()) {
+      try {
+        const auctionEl = $(element);
+        
+        // Extract basic info
+        const title = auctionEl.find('.auction-title').text().trim();
+        
+        // Skip if not a Mezger engine car
+        if (!isMezgerCar(title)) continue;
+        
+        // Extract link
+        const link = auctionEl.find('a.auction-link').attr('href') || '';
+        if (!link) continue;
+        
+        // Create a unique ID for the listing
+        const id = `bat-${Buffer.from(link).toString('base64').substring(0, 10)}`;
+        
+        // Check if we already have this auction
+        const existingIndex = auctions.findIndex(auction => auction.id === id);
+        if (existingIndex >= 0) {
+          console.log(`Auction already exists: ${title}`);
+          continue;
+        }
+        
+        // Get more details from the auction page
+        console.log(`Fetching details for auction: ${title}`);
+        await delay(config.requestDelay); // Be nice to the server
+        
+        const auctionDetails = await fetchBATAuctionDetails(link);
+        if (!auctionDetails) continue;
+        
+        // Extract model from title
+        const model = extractModelFromTitle(title);
+        
+        // Create auction object
+        const auctionListing = {
+          id,
+          type: 'auction',
+          model,
+          title,
+          description: auctionDetails.description,
+          currentBid: auctionDetails.currentBid,
+          year: extractYear(title),
+          mileage: auctionDetails.mileage,
+          location: auctionDetails.location,
+          engine: auctionDetails.engine || '3.6L Mezger Flat-6',
+          transmission: auctionDetails.transmission,
+          exteriorColor: auctionDetails.exteriorColor,
+          interiorColor: auctionDetails.interiorColor,
+          vin: auctionDetails.vin,
+          status: 'auction',
+          endTime: auctionDetails.endTime,
+          bidCount: auctionDetails.bidCount,
+          images: auctionDetails.images,
+          source: 'auction',
+          sourceDisplay: 'Bring A Trailer',
+          link,
+          dateAdded: new Date().toISOString()
+        };
+        
+        // Add to auctions array
+        auctions.push(auctionListing);
+        console.log(`Added new auction: ${title}`);
+      } catch (error) {
+        console.error('Error processing BAT auction listing:', error);
+      }
+    }
+    
+    console.log(`Processed ${auctions.length} active auctions from Bring A Trailer`);
+  } catch (error) {
+    console.error('Error scraping BAT active auctions:', error);
+  }
+}
+
+// Specific scraper for Bring A Trailer completed listings
+async function scrapeBATCompletedListings(source, data) {
+  try {
+    const response = await axiosInstance.get(source.completedUrl);
+    const $ = cheerio.load(response.data);
+    
+    // Find all completed listings
+    const completedListings = $('.bat-grid-item-image');
+    console.log(`Found ${completedListings.length} potential completed listings on Bring A Trailer`);
+    
+    for (const element of completedListings.toArray()) {
+      try {
+        const listingEl = $(element);
+        
+        // Extract basic info
+        const title = listingEl.find('.bat-grid-item-title').text().trim();
+        
+        // Skip if not a Mezger engine car
+        if (!isMezgerCar(title)) continue;
+        
+        // Extract link and price
+        const link = listingEl.find('a').attr('href') || '';
+        if (!link) continue;
+        
+        const priceText = listingEl.find('.bat-grid-item-details-price').text().trim();
+        const price = extractPrice(priceText);
+        
+        // Create a unique ID for the listing
+        const id = `bat-${Buffer.from(link).toString('base64').substring(0, 10)}`;
+        
+        // Check if we already have this listing
+        const existingIndex = data.cars.findIndex(car => car.id === id);
+        if (existingIndex >= 0) {
+          console.log(`Listing already exists: ${title}`);
+          continue;
+        }
+        
+        // Get more details from the listing page
+        console.log(`Fetching details for listing: ${title}`);
+        await delay(config.requestDelay); // Be nice to the server
+        
+        const listingDetails = await fetchBATListingDetails(link);
+        if (!listingDetails) continue;
+        
+        // Extract model from title
+        const model = extractModelFromTitle(title);
+        
+        // Create car listing object
+        const carListing = {
+          id,
+          type: 'vehicle',
+          model,
+          title,
+          description: listingDetails.description,
+          price,
+          year: extractYear(title),
+          mileage: listingDetails.mileage,
+          location: listingDetails.location,
+          engine: listingDetails.engine || '3.6L Mezger Flat-6',
+          transmission: listingDetails.transmission,
+          exteriorColor: listingDetails.exteriorColor,
+          interiorColor: listingDetails.interiorColor,
+          vin: listingDetails.vin,
+          status: 'sold',
+          images: listingDetails.images,
+          source: 'auction',
+          sourceDisplay: 'Bring A Trailer',
+          link,
+          dateAdded: new Date().toISOString(),
+          soldDate: listingDetails.soldDate,
+          soldPrice: price
+        };
+        
+        // Add to cars array
+        data.cars.push(carListing);
+        console.log(`Added new car listing: ${title}`);
+      } catch (error) {
+        console.error('Error processing BAT completed listing:', error);
+      }
+    }
+    
+    console.log(`Processed ${data.cars.length} car listings from Bring A Trailer`);
+  } catch (error) {
+    console.error('Error scraping BAT completed listings:', error);
+  }
+}
+
+// Fetch details from a BAT auction page
+async function fetchBATAuctionDetails(url) {
+  try {
+    const response = await axiosInstance.get(url);
+    const $ = cheerio.load(response.data);
+    
+    // Extract auction details
+    const description = $('.listing-details-content p').first().text().trim();
+    
+    // Extract current bid
+    const bidText = $('.current-bid').text().trim();
+    const currentBid = extractPrice(bidText) || 0;
+    
+    // Extract bid count
+    const bidCountText = $('.bid-count').text().trim();
+    const bidCount = parseInt(bidCountText.match(/\d+/)?.[0] || '0', 10);
+    
+    // Extract end time
+    const endTimeText = $('.listing-available-countdown').attr('data-end') || '';
+    const endTime = endTimeText ? new Date(endTimeText).toISOString() : new Date(Date.now() + 86400000).toISOString(); // Default to 24h from now
+    
+    // Extract specs
+    const specs = {};
+    $('.listing-essentials-items li').each((i, el) => {
+      const label = $(el).find('.label').text().trim().toLowerCase();
+      const value = $(el).find('.value').text().trim();
+      
+      if (label.includes('mileage')) specs.mileage = value;
+      else if (label.includes('vin')) specs.vin = value;
+      else if (label.includes('location')) specs.location = value;
+      else if (label.includes('transmission')) specs.transmission = value;
+      else if (label.includes('exterior')) specs.exteriorColor = value;
+      else if (label.includes('interior')) specs.interiorColor = value;
+      else if (label.includes('engine')) specs.engine = value;
+    });
+    
+    // Extract images
+    const images = [];
+    $('.carousel-inner .item img').each((i, el) => {
+      const src = $(el).attr('src');
+      if (src && !images.includes(src)) {
+        images.push(src);
+      }
+    });
+    
+    // If no carousel images, try gallery images
+    if (images.length === 0) {
+      $('.gallery-image').each((i, el) => {
+        const src = $(el).attr('src');
+        if (src && !images.includes(src)) {
+          images.push(src);
+        }
+      });
+    }
+    
+    return {
+      description,
+      currentBid,
+      bidCount,
+      endTime,
+      images,
+      ...specs
+    };
+  } catch (error) {
+    console.error(`Error fetching BAT auction details for ${url}:`, error);
+    return null;
+  }
+}
+
+// Fetch details from a BAT listing page
+async function fetchBATListingDetails(url) {
+  try {
+    const response = await axiosInstance.get(url);
+    const $ = cheerio.load(response.data);
+    
+    // Extract listing details
+    const description = $('.listing-details-content p').first().text().trim();
+    
+    // Extract sold date
+    const soldDateText = $('.listing-available-sold').text().trim();
+    const soldDateMatch = soldDateText.match(/Sold on (\d+\/\d+\/\d+)/);
+    const soldDate = soldDateMatch ? new Date(soldDateMatch[1]).toISOString() : new Date().toISOString();
+    
+    // Extract specs
+    const specs = {};
+    $('.listing-essentials-items li').each((i, el) => {
+      const label = $(el).find('.label').text().trim().toLowerCase();
+      const value = $(el).find('.value').text().trim();
+      
+      if (label.includes('mileage')) specs.mileage = value;
+      else if (label.includes('vin')) specs.vin = value;
+      else if (label.includes('location')) specs.location = value;
+      else if (label.includes('transmission')) specs.transmission = value;
+      else if (label.includes('exterior')) specs.exteriorColor = value;
+      else if (label.includes('interior')) specs.interiorColor = value;
+      else if (label.includes('engine')) specs.engine = value;
+    });
+    
+    // Extract images
+    const images = [];
+    $('.carousel-inner .item img').each((i, el) => {
+      const src = $(el).attr('src');
+      if (src && !images.includes(src)) {
+        images.push(src);
+      }
+    });
+    
+    // If no carousel images, try gallery images
+    if (images.length === 0) {
+      $('.gallery-image').each((i, el) => {
+        const src = $(el).attr('src');
+        if (src && !images.includes(src)) {
+          images.push(src);
+        }
+      });
+    }
+    
+    return {
+      description,
+      soldDate,
+      images,
+      ...specs
+    };
+  } catch (error) {
+    console.error(`Error fetching BAT listing details for ${url}:`, error);
+    return null;
+  }
+}
+
+// Extract model from title
+function extractModelFromTitle(title) {
+  const lowerTitle = title.toLowerCase();
+  
+  // Check for specific models
+  if (lowerTitle.includes('996') && lowerTitle.includes('gt3') && lowerTitle.includes('rs')) {
+    return '996-gt3-rs';
+  } else if (lowerTitle.includes('996') && lowerTitle.includes('gt3')) {
+    return '996-gt3';
+  } else if (lowerTitle.includes('996') && lowerTitle.includes('gt2')) {
+    return '996-gt2';
+  } else if (lowerTitle.includes('996') && lowerTitle.includes('turbo')) {
+    return '996-turbo';
+  } else if (lowerTitle.includes('997') && lowerTitle.includes('gt3') && lowerTitle.includes('rs')) {
+    return '997-gt3-rs';
+  } else if (lowerTitle.includes('997') && lowerTitle.includes('gt3')) {
+    return '997-gt3';
+  } else if (lowerTitle.includes('997') && lowerTitle.includes('gt2') && lowerTitle.includes('rs')) {
+    return '997-gt2-rs';
+  } else if (lowerTitle.includes('997') && lowerTitle.includes('gt2')) {
+    return '997-gt2';
+  } else if (lowerTitle.includes('997') && lowerTitle.includes('turbo')) {
+    return '997-turbo';
+  } else if (lowerTitle.includes('mezger') && (lowerTitle.includes('engine') || lowerTitle.includes('part'))) {
+    return 'mezger-engine';
+  }
+  
+  // Default fallback
+  if (lowerTitle.includes('996')) {
+    return '996-mezger';
+  } else if (lowerTitle.includes('997')) {
+    return '997-mezger';
+  } else {
+    return 'mezger-engine';
   }
 }
 
@@ -401,6 +774,8 @@ function isMezgerPart(title) {
   return (
     lowerTitle.includes('mezger') ||
     (lowerTitle.includes('engine') && 
+     (lowerTitle.includes('gt3') || lowerTitle.includes('gt2') || lowerTitle.includes('turbo'))) ||
+    (  && 
      (lowerTitle.includes('gt3') || lowerTitle.includes('gt2') || lowerTitle.includes('turbo'))) ||
     (lowerTitle.includes('part') && 
      (lowerTitle.includes('gt3') || lowerTitle.includes('gt2') || lowerTitle.includes('turbo')))
