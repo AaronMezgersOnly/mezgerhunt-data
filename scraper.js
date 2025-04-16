@@ -1,5 +1,7 @@
+// Mezger Search - Web Scraper
 import fs from 'fs/promises';
-import fetch from 'node-fetch';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { JSDOM } from 'jsdom';
 
 // Configuration
