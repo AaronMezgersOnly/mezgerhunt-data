@@ -1,9 +1,4 @@
 {
-  "lastUpdated": "2025-04-15T19:19:51.744Z",
-  "sources": [
-    "Rennlist",
-    "PelicanParts"
-  ],
   "cars": [
     {
       "id": "car-1",
@@ -48,5 +43,35 @@
       "status": "active"
     }
   ],
-  "parts": []
+  "parts": [
+    {
+      "id": "demo-part-1",
+      "type": "part",
+      "title": "GT3 RS 4.0 Titanium Connecting Rods",
+      "partNumber": "997-GT3-CON-RODS",
+      "price": 3500,
+      "description": "Genuine Porsche titanium connecting rods as used in the 997 GT3 RS 4.0.",
+      "image": "https://images.squarespace-cdn.com/content/v1/5f6b0fad5f8e2f57a7d7acf7/1600889300037-ZCJZ4BXKVL5LDPVF9ZQL/Connecting+Rods.jpg",
+      "source": "demo",
+      "sourceDisplay": "Demo Listing",
+      "link": "#",
+      "dateScraped": "2025-04-16T00:48:05.110Z",
+      "status": "in_stock"
+    },
+    {
+      "id": "demo-part-2",
+      "type": "part",
+      "title": "Mezger Engine Oil Filter",
+      "partNumber": "OEM-99610722553",
+      "price": 19.99,
+      "description": "Genuine Porsche oil filter for Mezger engines.",
+      "image": "https://images.squarespace-cdn.com/content/v1/5f6b0fad5f8e2f57a7d7acf7/1600889300037-ZCJZ4BXKVL5LDPVF9ZQL/Oil+Filter.jpg",
+      "source": "demo",
+      "sourceDisplay": "Demo Listing",
+      "link": "#",
+      "dateScraped": "2025-04-16T00:48:05.110Z",
+      "status": "in_stock"
+    }
+  ],
+  "lastUpdated": "2025-04-16T00:48:02.243Z"
 }
