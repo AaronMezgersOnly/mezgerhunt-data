@@ -11,7 +11,7 @@ const config = {
       name: 'bringatrailer',
       displayName: 'Bring A Trailer',
       url: 'https://bringatrailer.com/porsche/911-gt3-gt2-turbo-mezger/',
-      type: 'car',
+      type: 'car'
       scraper: 'cheerio' // Use cheerio for this source
     },
     {
