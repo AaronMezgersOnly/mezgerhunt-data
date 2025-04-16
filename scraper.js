@@ -2,7 +2,6 @@
 import fs from 'fs/promises';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { JSDOM } from 'jsdom';
 
 // Configuration
 const config = {
