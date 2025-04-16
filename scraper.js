@@ -775,7 +775,7 @@ function isMezgerPart(title) {
     lowerTitle.includes('mezger') ||
     (lowerTitle.includes('engine') && 
      (lowerTitle.includes('gt3') || lowerTitle.includes('gt2') || lowerTitle.includes('turbo'))) ||
-    (  && 
+    (lowerTitle.includes('cylinder') && 
      (lowerTitle.includes('gt3') || lowerTitle.includes('gt2') || lowerTitle.includes('turbo'))) ||
     (lowerTitle.includes('part') && 
      (lowerTitle.includes('gt3') || lowerTitle.includes('gt2') || lowerTitle.includes('turbo')))
