@@ -2,7 +2,6 @@
 import fs from 'fs/promises';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { JSDOM } from 'jsdom';
 
 // Configuration
 const config = {
@@ -11,22 +10,13 @@ const config = {
       name: 'bringatrailer',
       displayName: 'Bring A Trailer',
       url: 'https://bringatrailer.com/porsche/911-gt3-gt2-turbo-mezger/',
-      type: 'car',
-      scraper: 'cheerio' // Use cheerio for this source
-    },
-    {
-      name: 'rennlist',
-      displayName: 'Rennlist',
-      url: 'https://rennlist.com/forums/market/vehicles-for-sale/',
-      type: 'car',
-      scraper: 'jsdom' // Use jsdom for this source
+      type: 'car'
     },
     {
       name: 'pelicanparts',
       displayName: 'Pelican Parts',
       url: 'https://www.pelicanparts.com/Porsche/catalog/SuperCat_Porsche_911_997_Engine.htm',
-      type: 'part',
-      scraper: 'cheerio' // Use cheerio for this source
+      type: 'part'
     }
   ],
   outputPath: './data.json',
@@ -83,13 +73,7 @@ async function runScraper() {
         await delay(config.requestDelay);
       }
       
-      if (source.scraper === 'cheerio') {
-        // Use cheerio for this source
-        await scrapeWithCheerio(source, data);
-      } else {
-        // Use jsdom for this source
-        await scrapeWithJSDOM(source, data);
-      }
+      await scrapeWithCheerio(source, data);
     } catch (error) {
       console.error(`Error processing ${source.name}:`, error);
     }
@@ -122,29 +106,6 @@ async function scrapeWithCheerio(source, data) {
     } else {
       await scrapeGenericPartListings($, source, data);
     }
-  }
-}
-
-// Scrape using JSDOM (better for complex sites with JavaScript)
-async function scrapeWithJSDOM(source, data) {
-  const response = await fetch(source.url, {
-    headers: {
-      'User-Agent': config.userAgent
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${source.url}: ${response.status} ${response.statusText}`);
-  }
-
-  const html = await response.text();
-  const dom = new JSDOM(html);
-  const document = dom.window.document;
-
-  if (source.type === 'car') {
-    await scrapeCarListings(document, source, data);
-  } else {
-    await scrapePartListings(document, source, data);
   }
 }
 
@@ -422,139 +383,6 @@ async function scrapeGenericPartListings($, source, data) {
       console.error('Error processing part listing:', error);
     }
   });
-}
-
-// Function to scrape car listings with JSDOM
-async function scrapeCarListings(document, source, data) {
-  // This is a simplified example - you'll need to customize for each source
-  const listings = document.querySelectorAll('.listing-item, .auction-item, .car-listing');
-  console.log(`Found ${listings.length} potential car listings on ${source.name}`);
-
-  for (const listing of listings) {
-    try {
-      // Extract data based on the source's HTML structure
-      const title = listing.querySelector('.listing-title, .item-title')?.textContent?.trim() || 'Unknown Model';
-      
-      // Skip if not a Mezger engine car
-      if (!isMezgerCar(title)) continue;
-      
-      const priceText = listing.querySelector('.price, .amount')?.textContent;
-      const price = extractPrice(priceText);
-      const link = listing.querySelector('a')?.href || '#';
-      const image = listing.querySelector('img')?.src || '';
-      const year = extractYear(title);
-      const location = listing.querySelector('.location')?.textContent?.trim() || '';
-      
-      // Create a unique ID for the listing
-      const id = `${source.name}-${Buffer.from(link).toString('base64').substring(0, 10)}`;
-      
-      // Check if we already have this listing
-      const existingIndex = data.cars.findIndex(car => car.id === id);
-      
-      const carListing = {
-        id,
-        type: 'car',
-        title,
-        price,
-        year,
-        location,
-        image,
-        source: source.name,
-        sourceDisplay: source.displayName,
-        link,
-        dateScraped: new Date().toISOString(),
-        status: 'active'
-      };
-      
-      if (existingIndex >= 0) {
-        // Update existing listing
-        data.cars[existingIndex] = {
-          ...data.cars[existingIndex],
-          ...carListing,
-          // Preserve original scraped date
-          dateScraped: data.cars[existingIndex].dateScraped
-        };
-        console.log(`Updated car listing: ${title}`);
-      } else {
-        // Add new listing
-        data.cars.push(carListing);
-        console.log(`Added new car listing: ${title}`);
-      }
-    } catch (error) {
-      console.error('Error processing car listing:', error);
-    }
-  }
-}
-
-// Function to scrape part listings with JSDOM
-async function scrapePartListings(document, source, data) {
-  // This is a simplified example - you'll need to customize for each source
-  const listings = document.querySelectorAll('.part-item, .product-listing');
-  console.log(`Found ${listings.length} potential part listings on ${source.name}`);
-
-  for (const listing of listings) {
-    try {
-      // Extract data based on the source's HTML structure
-      const title = listing.querySelector('.part-title, .product-name')?.textContent?.trim() || 'Unknown Part';
-      
-      // Skip if not a Mezger engine part
-      if (!isMezgerPart(title)) continue;
-      
-      const priceText = listing.querySelector('.price, .amount')?.textContent;
-      const price = extractPrice(priceText);
-      const link = listing.querySelector('a')?.href || '#';
-      const image = listing.querySelector('img')?.src || '';
-      const partNumber = listing.querySelector('.part-number, .sku')?.textContent?.trim() || '';
-      const description = listing.querySelector('.description, .details')?.textContent?.trim() || '';
-      
-      // Create a unique ID for the listing
-      const id = `${source.name}-${Buffer.from(link).toString('base64').substring(0, 10)}`;
-      
-      // Check if we already have this listing
-      const existingIndex = data.parts.findIndex(part => part.id === id);
-      
-      // Determine stock status
-      let status = 'in_stock';
-      const stockText = listing.querySelector('.stock, .availability')?.textContent?.toLowerCase() || '';
-      if (stockText.includes('out of stock') || stockText.includes('sold out')) {
-        status = 'out_of_stock';
-      } else if (stockText.includes('back order') || stockText.includes('pre-order')) {
-        status = 'back_ordered';
-      }
-      
-      const partListing = {
-        id,
-        type: 'part',
-        title,
-        partNumber,
-        price,
-        description,
-        image,
-        source: source.name,
-        sourceDisplay: source.displayName,
-        link,
-        dateScraped: new Date().toISOString(),
-        status
-      };
-      
-      if (existingIndex >= 0) {
-        // Update existing listing
-        data.parts[existingIndex] = {
-          ...data.parts[existingIndex],
-          ...partListing,
-          // Preserve original scraped date
-          dateScraped: data.parts[existingIndex].dateScraped
-        };
-        console.log(`Updated part listing: ${title}`);
-      } else {
-        // Add new listing
-        data.parts.push(partListing);
-        console.log(`Added new part listing: ${title}`);
-      }
-    } catch (error) {
-      console.error('Error processing part listing:', error);
-    }
-  }
 }
 
 // Helper function to check if a car has a Mezger engine
