@@ -12,21 +12,30 @@ const config = {
       displayName: 'Bring A Trailer',
       url: 'https://bringatrailer.com/porsche/911-gt3-gt2-turbo-mezger/',
       type: 'car'
-      scraper: 'cheerio' // Use cheerio for this source
+    },
+    {
+      name: 'pcarmarket',
+      displayName: 'PCarMarket',
+      url: 'https://www.pcarmarket.com/search/porsche_911_gt3_gt2_turbo/',
+      type: 'car'
     },
     {
       name: 'rennlist',
-      displayName: 'Rennlist',
-      url: 'https://rennlist.com/forums/market/vehicles-for-sale/',
-      type: 'car',
-      scraper: 'jsdom' // Use jsdom for this source
+      displayName: 'Rennlist Forums',
+      url: 'https://rennlist.com/forums/gt2-gt3-gt3rs-and-turbo-specific-forums/',
+      type: 'car'
     },
     {
       name: 'pelicanparts',
       displayName: 'Pelican Parts',
       url: 'https://www.pelicanparts.com/Porsche/catalog/SuperCat_Porsche_911_997_Engine.htm',
-      type: 'part',
-      scraper: 'cheerio' // Use cheerio for this source
+      type: 'part'
+    },
+    {
+      name: 'suncoastparts',
+      displayName: 'Suncoast Porsche Parts',
+      url: 'https://www.suncoastparts.com/category/997GT3ENGINEMEZGER.html',
+      type: 'part'
     }
   ],
   outputPath: './data.json',
