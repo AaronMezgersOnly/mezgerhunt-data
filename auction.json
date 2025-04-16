@@ -1,0 +1,30 @@
+[
+  {
+    "id": "a-001",
+    "type": "auction",
+    "model": "996-gt3",
+    "title": "2004 Porsche 996 GT3",
+    "description": "Auction description",
+    "currentBid": 65000,
+    "year": 2004,
+    "mileage": "42,000 miles",
+    "location": "Phoenix, AZ",
+    "engine": "3.6L Mezger Flat-6",
+    "transmission": "6-Speed Manual",
+    "exteriorColor": "Speed Yellow",
+    "interiorColor": "Black",
+    "vin": "WP0ZZZ99Z4S693057",
+    "status": "auction",
+    "endTime": "2023-08-15T20:00:00Z", // ISO date format for when auction ends
+    "bidCount": 18,
+    "images": [
+      "https://example.com/auction1.jpg",
+      "https://example.com/auction2.jpg"
+    ],
+    "source": "auction",
+    "sourceDisplay": "Bring A Trailer",
+    "link": "https://example.com/auction-listing",
+    "dateAdded": "2023-08-08T12:00:00Z"
+  }
+  // More auction listings...
+]
